@@ -1,0 +1,446 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Shiftline Quality Copilot</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: app shell. Line rail on the left, one incident on the right. A role switch changes depth: Frontline = what to do now; Process expert = why, plus a virtual experiment. Rail becomes a scroller on phones. */
+:root{
+  --bg:#eef1f3; --surface:#ffffff; --surface-2:#f5f7f8; --line:#d7dde1; --fg:#14202a; --muted:#5a6873;
+  --accent:#0f6b8f; --accent-soft:#dcedf3; --on-accent:#ffffff;
+  --ok:#2f7d4f; --ok-soft:#e1f1e7; --warn:#9a6100; --warn-soft:#fbefd6; --crit:#b3362b; --crit-soft:#f8e1de;
+  --note:#6a3fb5; --note-soft:#ece4f8;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1418; --surface:#151d23; --surface-2:#1b252c; --line:#2a363f; --fg:#e4eaee; --muted:#95a4ae;
+  --accent:#5bb6d8; --accent-soft:#16323e; --on-accent:#08141a;
+  --ok:#6cc58f; --ok-soft:#173326; --warn:#e6ad4a; --warn-soft:#3a2c12; --crit:#f07a6e; --crit-soft:#3d1c19;
+  --note:#b99bf0; --note-soft:#2a2140; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0e1418; --surface:#151d23; --surface-2:#1b252c; --line:#2a363f; --fg:#e4eaee; --muted:#95a4ae;
+  --accent:#5bb6d8; --accent-soft:#16323e; --on-accent:#08141a;
+  --ok:#6cc58f; --ok-soft:#173326; --warn:#e6ad4a; --warn-soft:#3a2c12; --crit:#f07a6e; --crit-soft:#3d1c19;
+  --note:#b99bf0; --note-soft:#2a2140; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.mono{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+button,input,select{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand h1{font-family:var(--f-display);font-stretch:118%;font-weight:750;font-size:1.35rem;margin:0;letter-spacing:-.01em}
+.brand span{color:var(--muted);font-size:.85rem}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.meta{color:var(--muted);font-size:.85rem}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);padding:5px 12px;border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.toggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:.85rem;cursor:pointer}
+.toggle[aria-pressed="true"]{background:var(--note-soft);border-color:var(--note);color:var(--note)}
+
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}
+.rail{display:flex;flex-direction:column;gap:6px;padding:10px}
+.rail h2{font-family:var(--f-display);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:6px 8px 4px}
+.linebtn{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:10px;border-radius:8px;border:1px solid transparent}
+.linebtn:hover{background:var(--surface-2)}
+.linebtn[aria-selected="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.linebtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.linebtn b{font-weight:600}
+.linebtn small{color:var(--muted);grid-column:1/-1;font-size:.8rem}
+.pill{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px;align-self:center;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.crit{background:var(--crit-soft);color:var(--crit)}
+
+main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;position:relative;min-width:0}
+.headline{display:flex;flex-direction:column;gap:6px}
+.headline h2{font-family:var(--f-display);font-stretch:112%;font-weight:700;font-size:1.5rem;line-height:1.2;margin:0;text-wrap:balance}
+.headline p{margin:0;color:var(--muted);max-width:65ch}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.kpi{border-top:2px solid var(--line);padding-top:8px}
+.kpi label{display:block;font-size:.72rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.kpi .v{font-family:var(--f-data);font-size:1.45rem;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:.8rem}
+.kpi.crit{border-color:var(--crit)} .kpi.crit .d{color:var(--crit)}
+.kpi.warn{border-color:var(--warn)} .kpi.warn .d{color:var(--warn)}
+.kpi.ok{border-color:var(--ok)} .kpi.ok .d{color:var(--ok)}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.sec-h h3{font-family:var(--f-display);font-size:1rem;font-weight:700;margin:0}
+.sec-h span{color:var(--muted);font-size:.8rem}
+
+/* role-dependent order: frontline sees the action right after the headline */
+.p-head{order:1} .p-action{order:2} .p-chart{order:3} .p-causes{order:4} .p-exp{order:5}
+.expert .p-chart{order:2} .expert .p-causes{order:3} .expert .p-exp{order:4} .expert .p-action{order:5}
+.frontline .expert-only{display:none}
+
+.chartbox{position:relative;width:100%;overflow-x:auto}
+.chartbox svg{display:block;width:100%;height:auto;min-width:540px}
+.tip{position:absolute;pointer-events:none;background:var(--fg);color:var(--bg);font-family:var(--f-data);font-size:.75rem;padding:5px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-125%)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px solid var(--accent);vertical-align:middle;margin-right:6px}
+.legend i.lim{border-top:1.5px dashed var(--muted)}
+.legend i.proj{border-top:2px dashed var(--ok)}
+.legend i.band{height:10px;border:0;background:var(--crit-soft)}
+
+.causes{display:flex;flex-direction:column;gap:8px}
+.cause{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cause button{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) 56px;gap:6px 10px;align-items:center;padding:12px}
+.cause button:hover{background:var(--surface-2)}
+.cause button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.rank{font-family:var(--f-data);color:var(--muted)}
+.cname{font-weight:600}
+.cname small{display:block;font-weight:400;color:var(--muted);font-family:var(--f-data);font-size:.8rem}
+.bar{grid-column:2/3;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.bar>div{height:100%;background:var(--accent);width:0;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.pct{font-family:var(--f-data);text-align:right;font-variant-numeric:tabular-nums}
+.evidence{padding:0 12px 12px 50px;color:var(--muted);font-size:.88rem}
+.evidence ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.graphbox{overflow-x:auto;margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.graphbox svg{display:block;width:100%;min-width:560px;height:auto}
+.graphcap{font-size:.8rem;color:var(--muted);margin:6px 0 0}
+
+.exp{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
+.field{display:flex;flex-direction:column;gap:8px}
+.field .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.field label{font-weight:600}
+.field output{font-family:var(--f-data);font-size:1.1rem}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.scale{display:flex;justify-content:space-between;font-family:var(--f-data);font-size:.75rem;color:var(--muted)}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.chk input{margin-top:3px;accent-color:var(--accent)}
+.results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.res{background:var(--surface-2);border-radius:8px;padding:10px}
+.res label{display:block;font-size:.72rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.res .v{font-family:var(--f-data);font-size:1.3rem;font-variant-numeric:tabular-nums}
+.res.good .v{color:var(--ok)} .res.bad .v{color:var(--crit)}
+.fine{font-size:.8rem;color:var(--muted);margin:8px 0 0}
+.linkbtn{border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-weight:600;font-size:.85rem;text-decoration:underline;text-underline-offset:3px}
+
+.action{border-left:4px solid var(--accent);background:var(--surface-2);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.action h4{margin:0;font-size:1.1rem;font-family:var(--f-display);font-stretch:105%;text-wrap:balance}
+.action p{margin:0;max-width:65ch}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font-weight:600;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.dismiss{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.88rem}
+.dismiss select{padding:6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.done{display:flex;align-items:center;gap:8px;color:var(--ok);font-weight:600}
+.empty{color:var(--muted);margin:0}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:.9rem;transition:.25s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.note{display:none;position:absolute;top:-10px;right:-8px;z-index:3;background:var(--note);color:var(--surface);font-family:var(--f-data);font-size:.72rem;font-weight:500;width:24px;height:24px;border-radius:50%;place-items:center;box-shadow:0 0 0 3px var(--bg)}
+.notes-on .note{display:grid}
+.notes-on .annot{outline:1px dashed var(--note);outline-offset:3px}
+.notelist{display:none;background:var(--note-soft);border:1px solid var(--note);border-radius:var(--r);padding:16px 18px}
+.notes-on .notelist{display:block}
+.notelist h3{font-family:var(--f-display);margin:0 0 8px;font-size:1rem;color:var(--note)}
+.notelist ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:85ch}
+footer{color:var(--muted);font-size:.8rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+@media (max-width:860px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{flex-direction:row;overflow-x:auto}
+  .rail h2{display:none}
+  .linebtn{min-width:200px}
+  .exp{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){ .kpis,.results{grid-template-columns:minmax(0,1fr)} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap frontline" id="app">
+  <div class="topbar">
+    <div class="brand"><h1>Shiftline</h1><span>Quality copilot · Plant Burgdorf (fictional)</span></div>
+    <div class="controls">
+      <span class="meta mono">Shift B · Fri 16 Oct, 18:40</span>
+      <div class="seg annot" role="group" aria-label="View as" style="position:relative">
+        <span class="note">3</span>
+        <button id="r-front" aria-pressed="true">Frontline</button>
+        <button id="r-exp" aria-pressed="false">Process expert</button>
+      </div>
+      <button class="toggle" id="notesBtn" aria-pressed="false">Show design notes</button>
+    </div>
+  </div>
+
+  <section class="notelist" aria-label="Design notes">
+    <h3>Design notes</h3>
+    <ol>
+      <li><b>Worst line first.</b> Lines are sorted by severity. Status is a word plus a color, so it still reads for color-blind people and on a dim shop-floor screen.</li>
+      <li><b>One sentence before any number.</b> A shift lead has seconds, so the headline says what changed, since when and why.</li>
+      <li><b>Same incident, two depths.</b> Frontline sees the decision first. Process experts see the evidence, the causal graph and a virtual experiment. Nobody gets a dashboard built for someone else.</li>
+      <li><b>Control limits and a forecast.</b> Dashed limits separate noise from a real process shift. The green dashed line shows what the recommended change should do, so the decision has a visible expected outcome.</li>
+      <li><b>Show the reasoning.</b> Causes are ranked by contribution and each opens its evidence. The causal graph shows how the parameters connect. People act on AI output when they can check it.</li>
+      <li><b>Try before you change the line.</b> The virtual experiment lets an expert test a setpoint and see the predicted scrap and savings. The recommendation updates with it, and a person always approves the change.</li>
+    </ol>
+  </section>
+
+  <div class="shell">
+    <nav class="panel rail annot" aria-label="Production lines">
+      <span class="note">1</span>
+      <h2>Lines · sorted by severity</h2>
+      <div id="lines" role="tablist" style="display:contents"></div>
+    </nav>
+
+    <main>
+      <section class="panel p-head annot" aria-live="polite">
+        <span class="note">2</span>
+        <div class="headline"><h2 id="headline"></h2><p id="sub"></p></div>
+        <div class="kpis" id="kpis"></div>
+      </section>
+
+      <section class="panel p-chart annot">
+        <span class="note">4</span>
+        <div class="sec-h"><h3 id="chartTitle">Scrap rate this shift</h3><span>Every 20 min, % of parts</span></div>
+        <div class="chartbox" id="chartbox"><svg id="chart" viewBox="0 0 720 270" role="img" aria-label="Scrap rate over the shift with control limits"></svg><div class="tip" id="tip" hidden></div></div>
+        <div class="legend"><span><i></i>Measured</span><span id="lg-proj"><i class="proj"></i>Forecast after the change</span><span><i class="lim"></i>Control limits (±3σ)</span><span><i class="band"></i>Out of control</span></div>
+      </section>
+
+      <section class="panel p-causes expert-only annot">
+        <span class="note">5</span>
+        <div class="sec-h"><h3>Root causes</h3><span>Contribution to the deviation, causal model estimate</span></div>
+        <div class="causes" id="causes"></div>
+        <div class="graphbox" id="graphbox"><svg id="graph" viewBox="0 0 660 250" role="img" aria-label="Causal graph of the parameters behind the deviation"></svg>
+          <p class="graphcap">How the parameters connect. Line width shows each path's share of the deviation.</p></div>
+      </section>
+
+      <section class="panel p-exp expert-only annot">
+        <span class="note">6</span>
+        <div class="sec-h"><h3>Virtual experiment</h3><span id="expMeta">Test a change before it reaches the line</span></div>
+        <div id="exp"></div>
+      </section>
+
+      <section class="panel p-action" id="actionPanel">
+        <div class="sec-h"><h3>Recommended next step</h3><span id="actionMeta"></span></div>
+        <div id="action"></div>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <span>Concept prototype by Louis Amara. All plant data is fictional.</span>
+    <span>HTML, CSS and plain JavaScript</span>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const HOURS=["14:00","14:20","14:40","15:00","15:20","15:40","16:00","16:20","16:40","17:00","17:20","17:40","18:00","18:20","18:40"];
+const FUTURE=["19:00","19:20","19:40","20:00","20:20","20:40"];
+const RATE=9500, PRICE=2.5, HOURS_LEFT=10/3; // parts per hour, CHF per part, 18:40 to 22:00
+const pred=(t,dry)=>1.2+0.075*Math.pow(t-212.5,2)+(dry?0:0.35);
+
+const LINES=[
+ {id:"L3",name:"Line 3 · Extrusion",prod:"Gasket profile EP-220",status:"crit",label:"Out of control",
+  headline:"Scrap on Line 3 has tripled since 16:40",
+  sub:"The rate left its normal range after a resin lot change. The main driver is a temperature drift in barrel zone 2.",
+  kpis:[["Scrap rate","4.8 %","+3.3 pts vs. last 5 shifts","crit"],["First-pass yield","93.1 %","−3.9 pts vs. last 5 shifts","crit"],["Parts lost this shift","1,240","≈ CHF 3,100 material","warn"]],
+  mean:1.5,sigma:.42,data:[1.4,1.6,1.3,1.5,1.7,1.4,1.6,1.9,2.6,3.4,3.9,4.4,4.6,4.9,4.8],
+  causes:[
+   {n:"Barrel zone 2 temperature drift",d:"219.2 °C, setpoint 215 °C",p:71,ev:["Drift starts at 16:25, 15 minutes before scrap rises","Same pattern in 3 earlier incidents on this line (Mar, Jun, Sep)","Zones 1 and 3 stay within ±0.5 °C"]},
+   {n:"Resin lot change to 24-118",d:"Moisture 0.08 %, spec ≤ 0.05 %",p:19,ev:["Lot switched at 16:10","Moisture value from incoming inspection on 12 Oct","Wetter resin makes the melt more sensitive to temperature"]},
+   {n:"Screw speed variance",d:"±2.1 rpm, normal ±0.8 rpm",p:6,ev:["Follows the melt change, so it is a symptom rather than a cause","Keep watching, no action needed"]}],
+  graph:{nodes:[
+    {id:"m",x:20,y:20,t:"Resin moisture",v:"0.08 % · spec ≤ 0.05"},
+    {id:"z",x:20,y:170,t:"Zone 2 temperature",v:"219.2 °C · set 215"},
+    {id:"v",x:250,y:95,t:"Melt viscosity",v:"−6 % vs. normal"},
+    {id:"s",x:480,y:95,t:"Scrap rate",v:"4.8 %",out:true},
+    {id:"sp",x:480,y:190,t:"Screw speed variance",v:"±2.1 rpm",dim:true}],
+   edges:[["m","v",19],["z","v",71],["v","s",90],["v","sp",0]]},
+  exp:true},
+ {id:"L2",name:"Line 2 · Packaging",prod:"Blister pack BP-14",status:"warn",label:"Watch",
+  headline:"Label rejects on Line 2 are trending upward",
+  sub:"Still inside the control limits, but rising for five readings in a row. Plan a fix, no urgent action needed.",
+  kpis:[["Reject rate","1.3 %","+0.5 pts vs. last 5 shifts","warn"],["First-pass yield","98.4 %","−0.5 pts vs. last 5 shifts","warn"],["Parts lost this shift","310","≈ CHF 180 material","ok"]],
+  mean:.8,sigma:.18,data:[.7,.8,.6,.8,.9,.7,.8,.7,.8,.9,1.0,1.1,1.2,1.2,1.3],
+  causes:[
+   {n:"Label roll near the end of the spool",d:"Tension below 35 % of roll",p:58,ev:["Same rise at the end of the previous two rolls","Next roll change planned for 19:30"]},
+   {n:"Camera 2 calibration age",d:"9 days, target 7",p:24,ev:["Small offset on the left edge only"]}],
+  graph:{nodes:[
+    {id:"r",x:20,y:20,t:"Label roll tension",v:"below 35 %"},
+    {id:"c",x:20,y:170,t:"Camera 2 calibration",v:"9 days old"},
+    {id:"p",x:250,y:95,t:"Label placement",v:"+0.6 mm offset"},
+    {id:"j",x:480,y:95,t:"Reject rate",v:"1.3 %",out:true}],
+   edges:[["r","p",58],["c","p",24],["p","j",82]]},
+  action:{t:"Change the label roll at 19:30 as planned, then recalibrate camera 2",p:"Expected effect: reject rate back to about 0.8 %. Low urgency, fits the planned roll change.",meta:"Confidence: medium"}},
+ {id:"L1",name:"Line 1 · Injection molding",prod:"Housing HM-08",status:"ok",label:"Stable",
+  headline:"Line 1 is running within its normal range",
+  sub:"No deviations this shift. All monitored parameters are inside their limits.",
+  kpis:[["Scrap rate","0.9 %","−0.1 pts vs. last 5 shifts","ok"],["First-pass yield","99.0 %","+0.2 pts vs. last 5 shifts","ok"],["Parts lost this shift","95","≈ CHF 60 material","ok"]],
+  mean:1.0,sigma:.2,data:[1.0,.9,1.1,.9,1.0,.8,1.0,1.1,.9,.9,1.0,.8,.9,1.0,.9],causes:[],graph:null,action:null}
+];
+
+const $=s=>document.querySelector(s);
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const REC={t:213,dry:true};
+let cur=LINES[0], role="frontline", exp={...REC}, approved={};
+const fmt=(n,d=1)=>n.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+
+function projection(){
+  if(!cur.exp) return null;
+  const last=cur.data[cur.data.length-1], target=pred(exp.t,exp.dry);
+  return FUTURE.map((_,k)=>+(target+(last-target)*Math.exp(-(k+1)/1.6)).toFixed(2));
+}
+
+function renderRail(){
+  const el=$("#lines"); el.innerHTML="";
+  LINES.forEach(l=>{
+    const b=document.createElement("button");
+    b.className="linebtn"; b.setAttribute("role","tab"); b.setAttribute("aria-selected",l===cur);
+    b.innerHTML=`<b>${l.name}</b><span class="pill ${l.status}">${l.label}</span><small>${l.prod}</small>`;
+    b.onclick=()=>{cur=l;render()};
+    el.appendChild(b);
+  });
+}
+function renderHead(){
+  $("#headline").textContent=cur.headline; $("#sub").textContent=cur.sub;
+  $("#kpis").innerHTML=cur.kpis.map(([k,v,d,s])=>`<div class="kpi ${s}"><label>${k}</label><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
+  $("#chartTitle").textContent=cur.id==="L2"?"Label rejects this shift":"Scrap rate this shift";
+}
+
+function renderChart(animate){
+  const proj=projection(); $("#lg-proj").hidden=!proj;
+  const W=720,H=270,m={l:46,r:18,t:22,b:30};
+  const all=proj?cur.data.concat(proj):cur.data, labels=proj?HOURS.concat(FUTURE):HOURS;
+  const n=all.length, ucl=cur.mean+3*cur.sigma, lcl=Math.max(0,cur.mean-3*cur.sigma);
+  const maxV=Math.max(ucl,...all)*1.15;
+  const x=i=>m.l+i*(W-m.l-m.r)/(n-1), y=v=>H-m.b-(v/maxV)*(H-m.t-m.b);
+  const step=maxV>3?1:(maxV>1.5?.5:.25), mono='font-family="IBM Plex Mono, monospace"';
+  let s="";
+  for(let v=0;v<=maxV+1e-9;v+=step){const vv=+v.toFixed(2);s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(vv)}" y2="${y(vv)}" stroke="var(--line)"/><text x="${m.l-8}" y="${y(vv)+4}" text-anchor="end" font-size="11" fill="var(--muted)" ${mono}>${vv}%</text>`}
+  labels.forEach((h,i)=>{if(i%2===0)s+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)" ${mono}>${h}</text>`});
+  const out=cur.data.map((v,i)=>v>ucl?i:-1).filter(i=>i>=0);
+  if(out.length){const a=x(out[0])-10,b=x(out[out.length-1])+10;s+=`<rect x="${a}" y="${m.t}" width="${b-a}" height="${H-m.t-m.b}" fill="var(--crit-soft)"/>`}
+  if(proj){const nx=x(cur.data.length-1);s+=`<line x1="${nx}" x2="${nx}" y1="${m.t-6}" y2="${H-m.b}" stroke="var(--muted)" stroke-width="1"/><text x="${nx+6}" y="${m.t+4}" font-size="11" fill="var(--muted)" ${mono}>now</text>`}
+  s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(ucl)}" y2="${y(ucl)}" stroke="var(--muted)" stroke-dasharray="5 4"/><text x="${m.l+6}" y="${y(ucl)-6}" font-size="10" fill="var(--muted)" ${mono}>UCL ${ucl.toFixed(2)} %</text>`;
+  if(lcl>0)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(lcl)}" y2="${y(lcl)}" stroke="var(--muted)" stroke-dasharray="5 4"/>`;
+  const meas=cur.data.map((v,i)=>`${x(i)},${y(v)}`).join(" ");
+  s+=`<polygon points="${x(0)},${y(0)} ${meas} ${x(cur.data.length-1)},${y(0)}" fill="var(--accent-soft)" opacity=".65"/>`;
+  s+=`<polyline id="pl" points="${meas}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  if(proj){const li=cur.data.length-1;const pp=[`${x(li)},${y(cur.data[li])}`].concat(proj.map((v,k)=>`${x(li+k+1)},${y(v)}`)).join(" ");
+    s+=`<polyline points="${pp}" fill="none" stroke="var(--ok)" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>`;
+    proj.forEach((v,k)=>s+=`<circle cx="${x(li+k+1)}" cy="${y(v)}" r="3" fill="var(--surface)" stroke="var(--ok)" stroke-width="2"/>`);}
+  cur.data.forEach((v,i)=>{const bad=v>ucl,last=i===cur.data.length-1;
+    s+=`<circle cx="${x(i)}" cy="${y(v)}" r="${last?5.5:(bad?4.5:3)}" fill="${bad?"var(--crit)":"var(--accent)"}" stroke="var(--surface)" stroke-width="${last?2:0}"/>`});
+  all.forEach((v,i)=>s+=`<rect class="hit" data-i="${i}" x="${x(i)-14}" y="${m.t}" width="28" height="${H-m.t-m.b}" fill="transparent"/>`);
+  const svg=$("#chart"); svg.innerHTML=s;
+  const pl=svg.querySelector("#pl");
+  if(animate&&!reduce){const L=pl.getTotalLength();pl.style.strokeDasharray=L;pl.style.strokeDashoffset=L;pl.getBoundingClientRect();pl.style.transition="stroke-dashoffset .9s ease-out";pl.style.strokeDashoffset=0}
+  const tip=$("#tip"),box=$("#chartbox");
+  svg.querySelectorAll(".hit").forEach(r=>{
+    r.onmouseenter=()=>{const i=+r.dataset.i,v=all[i],future=i>=cur.data.length;const sr=svg.getBoundingClientRect(),br=box.getBoundingClientRect();
+      tip.textContent=`${labels[i]} · ${fmt(v)} %${future?" · forecast":(v>ucl?" · above limit":"")}`;
+      tip.style.left=(sr.left-br.left+box.scrollLeft+x(i)*sr.width/W)+"px";tip.style.top=(y(v)*sr.height/H)+"px";tip.hidden=false};
+    r.onmouseleave=()=>tip.hidden=true;
+  });
+}
+
+function renderCauses(){
+  const el=$("#causes");
+  $("#graphbox").hidden=!cur.graph;
+  if(!cur.causes.length){el.innerHTML=`<p class="empty">No deviation to explain on this line right now.</p>`;$("#graph").innerHTML="";return}
+  el.innerHTML=cur.causes.map((c,i)=>`
+    <div class="cause"><button aria-expanded="${i===0}" aria-controls="ev${i}">
+      <span class="rank">#${i+1}</span><span class="cname">${c.n}<small>${c.d}</small></span><span class="pct">${c.p} %</span>
+      <span></span><span class="bar"><div data-w="${c.p}"></div></span></button>
+      <div class="evidence" id="ev${i}" ${i===0?"":"hidden"}><ul>${c.ev.map(e=>`<li>${e}</li>`).join("")}</ul></div></div>`).join("");
+  el.querySelectorAll(".cause button").forEach(b=>b.onclick=()=>{const ev=document.getElementById(b.getAttribute("aria-controls"));const open=b.getAttribute("aria-expanded")==="true";b.setAttribute("aria-expanded",!open);ev.hidden=open});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.querySelectorAll(".bar div").forEach(d=>d.style.width=d.dataset.w+"%")));
+  renderGraph();
+}
+function renderGraph(){
+  const g=cur.graph, BW=170, BH=54; if(!g)return;
+  const N=Object.fromEntries(g.nodes.map(n=>[n.id,n]));
+  let s=`<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>`;
+  g.edges.forEach(([a,b,w])=>{const A=N[a],B=N[b];
+    const x1=A.x+BW,y1=A.y+BH/2,x2=B.x-4,y2=B.y+BH/2,mx=(x1+x2)/2;
+    const sw=w?Math.min(6,1.5+w/14):1.5, dash=w?"":'stroke-dasharray="4 4"';
+    s+=`<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${w>=50?"var(--accent)":"var(--muted)"}" stroke-width="${sw}" ${dash} marker-end="url(#ah)" opacity="${w?1:.7}"/>`;
+    if(w&&b!==g.nodes.find(n=>n.out).id)s+=`<text x="${x1+10}" y="${y2>y1?y1-8:y1+19}" font-size="12" font-weight="500" fill="var(--fg)" font-family="IBM Plex Mono, monospace">${w} %</text>`;
+  });
+  g.nodes.forEach(n=>{
+    const fill=n.out?"var(--crit-soft)":"var(--surface)", stroke=n.out?"var(--crit)":(n.dim?"var(--line)":"var(--muted)");
+    s+=`<rect x="${n.x}" y="${n.y}" width="${BW}" height="${BH}" rx="8" fill="${fill}" stroke="${stroke}" ${n.dim?'stroke-dasharray="4 3"':""}/>`;
+    s+=`<text x="${n.x+12}" y="${n.y+22}" font-size="13" font-weight="600" fill="var(--fg)" font-family="Public Sans, Arial, sans-serif">${n.t}</text>`;
+    s+=`<text x="${n.x+12}" y="${n.y+41}" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${n.v}</text>`;
+  });
+  $("#graph").innerHTML=s;
+}
+
+function renderExp(){
+  const el=$("#exp");
+  if(!cur.exp){$("#expMeta").textContent="";el.innerHTML=`<p class="empty">${cur.status==="ok"?"Nothing to test on Line 1. The process is stable.":"This deviation is fixed by a planned maintenance step, so there is no setpoint to test."}</p>`;return}
+  $("#expMeta").textContent="Test a change before it reaches the line";
+  el.innerHTML=`<div class="exp">
+    <div class="field">
+      <div class="row"><label for="tempR">Zone 2 melt temperature</label><output id="tempO" for="tempR"></output></div>
+      <input type="range" id="tempR" min="211" max="219.5" step="0.5" value="${exp.t}">
+      <div class="scale"><span>211 °C</span><span>now 219.2 °C</span></div>
+      <label class="chk" for="dryC"><input type="checkbox" id="dryC" ${exp.dry?"checked":""}><span>Dry resin lot 24-118 for 2 h at 80 °C<br><small style="color:var(--muted)">Brings moisture back under 0.05 %</small></span></label>
+      <button class="linkbtn" id="resetExp" type="button">Reset to the recommended settings</button>
+    </div>
+    <div>
+      <div class="results" id="results"></div>
+      <p class="fine">Estimate from a causal model fitted on this line's last 90 days. The forecast in the chart and the recommendation below follow these settings. Fictional data.</p>
+    </div></div>`;
+  const upd=()=>{exp.t=+$("#tempR").value;exp.dry=$("#dryC").checked;approved[cur.id]=false;paintResults();renderChart(false);renderAction()};
+  $("#tempR").oninput=upd; $("#dryC").onchange=upd;
+  $("#resetExp").onclick=()=>{exp={...REC};$("#tempR").value=exp.t;$("#dryC").checked=exp.dry;upd()};
+  paintResults();
+}
+function paintResults(){
+  const p=pred(exp.t,exp.dry), now=cur.data[cur.data.length-1];
+  const saved=Math.max(0,Math.round(RATE*HOURS_LEFT*(now-p)/100/10)*10);
+  $("#tempO").textContent=fmt(exp.t)+" °C";
+  $("#results").innerHTML=`
+    <div class="res ${p<2?"good":(p>3?"bad":"")}"><label>Predicted scrap</label><div class="v">${fmt(p)} %</div></div>
+    <div class="res"><label>Parts saved by 22:00</label><div class="v">${saved.toLocaleString("en-US")}</div></div>
+    <div class="res"><label>Material saved</label><div class="v">CHF ${Math.round(saved*PRICE/10*10).toLocaleString("en-US")}</div></div>`;
+}
+
+function actionFor(){
+  if(cur.exp){
+    const p=pred(exp.t,exp.dry), rec=exp.t===REC.t&&exp.dry===REC.dry;
+    const t=`Lower zone 2 to ${fmt(exp.t)} °C${exp.dry?" and dry resin lot 24-118 for 2 h at 80 °C":""}`;
+    const pp=p<2?`Expected effect: scrap back to about ${fmt(p)} % within 90 minutes, as in the three earlier incidents. Check a sample at 20:30.`
+      :`Expected effect: scrap only drops to about ${fmt(p)} %, still above the 2 % target. Consider a lower temperature${exp.dry?"":" or drying the resin"}.`;
+    return {t,p:pp,meta:rec?"Confidence: high · recommended":"Adjusted in the virtual experiment"};
+  }
+  return cur.action;
+}
+function renderAction(){
+  const a=actionFor(), el=$("#action");
+  $("#actionMeta").textContent=a?a.meta:"";
+  if(!a){el.innerHTML=`<p class="empty">Nothing to do on Line 1. Shiftline flags it here if a parameter starts to drift.</p>`;return}
+  if(approved[cur.id]){el.innerHTML=`<div class="action"><h4>${a.t}</h4><p class="done">Approved. The Line ${cur.id.slice(1)} crew has the instruction, and Shiftline will check the result at 20:30.</p><div class="btns"><button class="btn" id="undo">Undo approval</button></div></div>`;
+    $("#undo").onclick=()=>{approved[cur.id]=false;renderAction()};return}
+  el.innerHTML=`<div class="action"><h4>${a.t}</h4><p>${a.p}</p>
+    <div class="btns"><button class="btn primary" id="doIt">Approve change</button><button class="btn" id="noIt">Dismiss</button>${role==="frontline"&&cur.exp?'<button class="linkbtn" id="why">See why</button>':""}</div>
+    <div class="dismiss" id="whyNot" hidden><label for="reason">Why not?</label>
+      <select id="reason"><option>Already handled on the line</option><option>The cause looks wrong</option><option>Not possible during this shift</option></select>
+      <button class="btn" id="confirmNo">Confirm dismiss</button></div></div>`;
+  $("#doIt").onclick=()=>{approved[cur.id]=true;renderAction();toast("Change approved")};
+  $("#noIt").onclick=()=>$("#whyNot").hidden=false;
+  $("#confirmNo").onclick=()=>{$("#whyNot").hidden=true;toast("Dismissed. Your reason improves future recommendations")};
+  const w=$("#why"); if(w)w.onclick=()=>setRole("expert");
+}
+
+let tt;function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2600)}
+function setRole(r){role=r;const app=$("#app");app.classList.toggle("expert",r==="expert");app.classList.toggle("frontline",r==="frontline");
+  $("#r-front").setAttribute("aria-pressed",r==="frontline");$("#r-exp").setAttribute("aria-pressed",r==="expert");renderAction()}
+function render(){renderRail();renderHead();renderChart(true);renderCauses();renderExp();renderAction()}
+$("#r-front").onclick=()=>setRole("frontline"); $("#r-exp").onclick=()=>setRole("expert");
+$("#notesBtn").onclick=e=>{const on=$("#app").classList.toggle("notes-on");e.currentTarget.setAttribute("aria-pressed",on);e.currentTarget.textContent=on?"Hide design notes":"Show design notes"};
+render();
+</script>
+
+</body></html>
